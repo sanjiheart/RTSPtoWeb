@@ -1,0 +1,1 @@
+const auth = btoa('gan:SuperGan');

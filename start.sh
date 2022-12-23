@@ -1,0 +1,1 @@
+docker run --network host --name rtsp-to-web -d sanjiheart/rtsp-to-web:dev
