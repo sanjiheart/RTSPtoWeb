@@ -89,6 +89,8 @@ type StreamST struct {
 
 type ChannelST struct {
 	Name               string `json:"name,omitempty" groups:"api,config"`
+	Desc               string `json:"desc,omitempty" groups:"api,config"`
+	Format             string `json:"format,omitempty" groups:"api,config"`
 	URL                string `json:"url,omitempty" groups:"api,config"`
 	OnDemand           bool   `json:"on_demand,omitempty" groups:"api,config"`
 	Debug              bool   `json:"debug,omitempty" groups:"api,config"`

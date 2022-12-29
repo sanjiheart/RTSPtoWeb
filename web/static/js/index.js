@@ -472,7 +472,20 @@ function chanellTemplate() {
           </div>
         </div>
           <div class="card-body">
-          <form class="stream-form">
+          <form class="stream-form">            
+            <div class="form-group">
+              <label for="exampleInputPassword1">Stream description</label>
+              <input type="text" name="stream-desc" class="form-control"  placeholder="Enter stream description">
+              <small  class="form-text text-muted">More information here</small>
+            </div>
+            <div class="form-group">
+              <label for="inputStatus">Stream format</label>
+              <select class="form-control custom-select" name="stream-format">
+                <option selected disabled><small>Select One</small></option>
+                <option value="h264">H.264</option>
+                <option value="h265">H.265</option>
+              </select>
+            </div>  
             <div class="form-group">
               <label for="exampleInputPassword1">Substream url</label>
               <input type="text" name="stream-url" class="form-control"  placeholder="Enter stream url" >

@@ -33,6 +33,24 @@
                   <small  class="form-text text-muted">You can choose any name for the stream, for example "My room" or  "Happy sausage"</small>
                 </div>
                 <div class="form-group">
+                  <label for="exampleInputPassword1">Stream description</label>
+                  <input type="text" name="stream-desc" class="form-control"  placeholder="Enter stream description" value="{{$mainChannel.Desc}}">
+                  <small  class="form-text text-muted">More information here</small>
+                </div>
+                <div class="form-group">
+                  <label for="inputStatus">Stream format</label>
+                  <select class="form-control custom-select" name="stream-format">
+                    <option selected disabled><small>Select One</small></option>
+                    <option value="h264"
+                    {{ if eq $mainChannel.Format "h264"}}
+                      selected
+                    {{ end }}>H.264</option>
+                    <option value="h265" {{ if eq $mainChannel.Format "h265"}}
+                      selected
+                    {{ end }}>H.265</option>
+                  </select>
+                </div>
+                <div class="form-group">
                   <label for="exampleInputPassword1">Stream url</label>
                   <input type="text" name="stream-url" class="form-control"  placeholder="Enter stream url" value="{{$mainChannel.URL}}">
                   <small  class="form-text text-muted">Enter rtsp address as instructed by your camera. Look like <code>rtsp://&lt;ip&gt;:&lt;port&gt;/path </code></small>
@@ -78,12 +96,30 @@
                       <div class="card-body">
                       <form class="stream-form">
                         <div class="form-group">
+                          <label for="exampleInputPassword1">Substream description</label>
+                          <input type="text" name="stream-desc" class="form-control"  placeholder="Enter stream description" value="{{$value.Desc}}" >
+                          <small  class="form-text text-muted">More information here</small>
+                        </div>
+                        <div class="form-group">
+                          <label for="inputStatus">Substream format</label>
+                          <select class="form-control custom-select" name="stream-format">
+                          <option selected disabled><small>Select One</small></option>
+                          <option value="h264"
+                          {{ if eq $value.Format "h264"}}
+                            selected
+                          {{ end }}>H.264</option>
+                          <option value="h265"
+                          {{ if eq $value.Format "h265"}}
+                            selected
+                          {{ end }}>H.265</option>
+                          </select>
+                        </div>
+                        <div class="form-group">
                           <label for="exampleInputPassword1">Substream url</label>
                           <input type="text" name="stream-url" class="form-control"  placeholder="Enter stream url" value="{{$value.URL}}" >
                           <small  class="form-text text-muted">Enter rtsp address as instructed by your camera. Look like <code>rtsp://&lt;ip&gt;:&lt;port&gt;/path </code> </small>
                         </div>
                         <div class="form-group">
-
                           <label for="inputStatus">Substream type</label>
                           <select class="form-control custom-select" name="stream-ondemand">
                           <option selected disabled><small>Select One</small></option>
@@ -138,6 +174,8 @@ function editStreamSubmit(){
 
   $('.stream-form').each(function(i){
     params.channels[i]={
+        desc:$(this).find('input[name="stream-desc"]').val(),
+        format:$(this).find('select[name="stream-format"]').val(),
         url:$(this).find('input[name="stream-url"]').val(),
         on_demand:Boolean(parseInt($(this).find('select[name="stream-ondemand"]').val())),
         debug:Boolean($(this).find('input[name="debug"]').prop('checked')),
