@@ -41,10 +41,10 @@ func HTTPAPIServerStreamMSE(c *gin.Context) {
 		return
 	}
 
-	if !RemoteAuthorization("WS", c.Param("uuid"), c.Param("channel"), c.Param("token"), c.ClientIP()) {
+	if !RemoteAuthorization("WS", c.Param("uuid"), c.Param("channel"), c.Query("token"), c.ClientIP()) {
 		requestLogger.WithFields(logrus.Fields{
 			"call": "RemoteAuthorization",
-		}).Errorln(ErrorStreamNotFound.Error())
+		}).Errorln(ErrorStreamUnauthorized.Error())
 		return
 	}
 
