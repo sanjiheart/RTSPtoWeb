@@ -8,16 +8,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//HTTPAPIServerStreamWebRTC stream video over WebRTC
+// HTTPAPIServerStreamWebRTC stream video over WebRTC
 func HTTPAPIServerStreamWebRTC(c *gin.Context) {
+	safeContext := c.Copy()
 	requestLogger := log.WithFields(logrus.Fields{
 		"module":  "http_webrtc",
-		"stream":  c.Param("uuid"),
-		"channel": c.Param("channel"),
+		"stream":  safeContext.Param("uuid"),
+		"channel": safeContext.Param("channel"),
 		"func":    "HTTPAPIServerStreamWebRTC",
 	})
 
-	if !Storage.StreamChannelExist(c.Param("uuid"), c.Param("channel")) {
+	if !Storage.StreamChannelExist(safeContext.Param("uuid"), safeContext.Param("channel")) {
 		c.IndentedJSON(500, Message{Status: 0, Payload: ErrorStreamNotFound.Error()})
 		requestLogger.WithFields(logrus.Fields{
 			"call": "StreamChannelExist",
@@ -25,15 +26,15 @@ func HTTPAPIServerStreamWebRTC(c *gin.Context) {
 		return
 	}
 
-	if !RemoteAuthorization("WebRTC", c.Param("uuid"), c.Param("channel"), c.Query("token"), c.ClientIP()) {
+	if !RemoteAuthorization("WebRTC", safeContext.Param("uuid"), safeContext.Param("channel"), safeContext.Query("token"), safeContext.ClientIP()) {
 		requestLogger.WithFields(logrus.Fields{
 			"call": "RemoteAuthorization",
 		}).Errorln(ErrorStreamUnauthorized.Error())
 		return
 	}
 
-	Storage.StreamChannelRun(c.Param("uuid"), c.Param("channel"))
-	codecs, err := Storage.StreamChannelCodecs(c.Param("uuid"), c.Param("channel"))
+	Storage.StreamChannelRun(safeContext.Param("uuid"), safeContext.Param("channel"))
+	codecs, err := Storage.StreamChannelCodecs(safeContext.Param("uuid"), safeContext.Param("channel"))
 	if err != nil {
 		c.IndentedJSON(500, Message{Status: 0, Payload: err.Error()})
 		requestLogger.WithFields(logrus.Fields{
@@ -41,7 +42,22 @@ func HTTPAPIServerStreamWebRTC(c *gin.Context) {
 		}).Errorln(err.Error())
 		return
 	}
-	muxerWebRTC := webrtc.NewMuxer(webrtc.Options{ICEServers: Storage.ServerICEServers(), ICEUsername: Storage.ServerICEUsername(), ICECredential: Storage.ServerICECredential(), PortMin: Storage.ServerWebRTCPortMin(), PortMax: Storage.ServerWebRTCPortMax()})
+
+	options := webrtc.Options{
+	    ICEServers:    Storage.ServerICEServers(),
+	    ICEUsername:   Storage.ServerICEUsername(),
+	    ICECredential: Storage.ServerICECredential(),
+	    PortMin:       Storage.ServerWebRTCPortMin(),
+	    PortMax:       Storage.ServerWebRTCPortMax(),
+	}
+	
+	//Ensures that ice_candidates is optional
+	if len(Storage.ServerICECandidates()) > 0 {
+	    options.ICECandidates = Storage.ServerICECandidates()
+	}
+
+	muxerWebRTC := webrtc.NewMuxer(options)
+
 	answer, err := muxerWebRTC.WriteHeader(codecs, c.PostForm("data"))
 	if err != nil {
 		c.IndentedJSON(400, Message{Status: 0, Payload: err.Error()})
@@ -58,8 +74,9 @@ func HTTPAPIServerStreamWebRTC(c *gin.Context) {
 		}).Errorln(err.Error())
 		return
 	}
+
 	go func() {
-		cid, ch, _, err := Storage.ClientAdd(c.Param("uuid"), c.Param("channel"), WEBRTC)
+		cid, ch, _, err := Storage.ClientAdd(safeContext.Param("uuid"), safeContext.Param("channel"), WEBRTC)
 		if err != nil {
 			c.IndentedJSON(400, Message{Status: 0, Payload: err.Error()})
 			requestLogger.WithFields(logrus.Fields{
@@ -67,18 +84,28 @@ func HTTPAPIServerStreamWebRTC(c *gin.Context) {
 			}).Errorln(err.Error())
 			return
 		}
-		defer Storage.ClientDelete(c.Param("uuid"), cid, c.Param("channel"))
+		defer Storage.ClientDelete(safeContext.Param("uuid"), cid, safeContext.Param("channel"))
+		defer muxerWebRTC.Close() // Close the WebRTC session when done
 		var videoStart bool
 		noVideo := time.NewTimer(10 * time.Second)
 		for {
 			select {
 			case <-noVideo.C:
-				//				c.IndentedJSON(500, Message{Status: 0, Payload: ErrorStreamNoVideo.Error()})
+				c.IndentedJSON(500, Message{Status: 0, Payload: ErrorStreamNoVideo.Error()})
 				requestLogger.WithFields(logrus.Fields{
 					"call": "ErrorStreamNoVideo",
 				}).Errorln(ErrorStreamNoVideo.Error())
 				return
-			case pck := <-ch:
+			case pck, ok := <-ch:
+				if !ok {
+					// Channel closed, likely due to camera disconnection
+					c.IndentedJSON(500, Message{Status: 0, Payload: "Camera disconnected"})
+					requestLogger.WithFields(logrus.Fields{
+						"call": "CameraDisconnected",
+					}).Errorln("Camera disconnected")
+					return
+				}
+
 				if pck.IsKeyFrame {
 					noVideo.Reset(10 * time.Second)
 					videoStart = true

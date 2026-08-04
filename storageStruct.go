@@ -12,20 +12,20 @@ import (
 
 var Storage = NewStreamCore()
 
-//Default stream  type
+// Default stream  type
 const (
 	MSE = iota
 	WEBRTC
 	RTSP
 )
 
-//Default stream status type
+// Default stream status type
 const (
 	OFFLINE = iota
 	ONLINE
 )
 
-//Default stream errors
+// Default stream errors
 var (
 	Success                         = "success"
 	ErrorStreamNotFound             = errors.New("stream not found")
@@ -43,7 +43,7 @@ var (
 	ErrorStreamUnauthorized         = errors.New("stream request unauthorized")
 )
 
-//StorageST main storage struct
+// StorageST main storage struct
 type StorageST struct {
 	mutex           sync.RWMutex
 	Server          ServerST            `json:"server" groups:"api,config"`
@@ -51,7 +51,7 @@ type StorageST struct {
 	ChannelDefaults ChannelST           `json:"channel_defaults,omitempty" groups:"api,config"`
 }
 
-//ServerST server storage section
+// ServerST server storage section
 type ServerST struct {
 	Debug              bool         `json:"debug" groups:"api,config"`
 	LogLevel           logrus.Level `json:"log_level" groups:"api,config"`
@@ -59,6 +59,7 @@ type ServerST struct {
 	HTTPDebug          bool         `json:"http_debug" groups:"api,config"`
 	HTTPLogin          string       `json:"http_login" groups:"api,config"`
 	HTTPPassword       string       `json:"http_password" groups:"api,config"`
+	HTTPAuth           bool         `json:"http_auth" groups:"api,config"`
 	HTTPDir            string       `json:"http_dir" groups:"api,config"`
 	HTTPPort           string       `json:"http_port" groups:"api,config"`
 	RTSPPort           string       `json:"rtsp_port" groups:"api,config"`
@@ -71,18 +72,19 @@ type ServerST struct {
 	ICEServers         []string     `json:"ice_servers" groups:"api,config"`
 	ICEUsername        string       `json:"ice_username" groups:"api,config"`
 	ICECredential      string       `json:"ice_credential" groups:"api,config"`
+	ICECandidates      []string     `json:"ice_candidates" groups:"api,config"`
 	Token              Token        `json:"token,omitempty" groups:"api,config"`
 	WebRTCPortMin      uint16       `json:"webrtc_port_min" groups:"api,config"`
 	WebRTCPortMax      uint16       `json:"webrtc_port_max" groups:"api,config"`
 }
 
-//Token auth
+// Token auth
 type Token struct {
 	Enable  bool   `json:"enable" groups:"api,config"`
 	Backend string `json:"backend" groups:"api,config"`
 }
 
-//ServerST stream storage section
+// ServerST stream storage section
 type StreamST struct {
 	Name     string               `json:"name,omitempty" groups:"api,config"`
 	Channels map[string]ChannelST `json:"channels,omitempty" groups:"api,config"`
@@ -104,12 +106,14 @@ type ChannelST struct {
 	signals            chan int
 	hlsSegmentBuffer   map[int]SegmentOld
 	hlsSegmentNumber   int
+	hlsSequence        int
+	hlsLastDur         int
 	clients            map[string]ClientST
 	ack                time.Time
 	hlsMuxer           *MuxerHLS `json:"-"`
 }
 
-//ClientST client storage section
+// ClientST client storage section
 type ClientST struct {
 	mode              int
 	signals           chan int
@@ -118,7 +122,7 @@ type ClientST struct {
 	socket            net.Conn
 }
 
-//SegmentOld HLS cache section
+// SegmentOld HLS cache section
 type SegmentOld struct {
 	dur  time.Duration
 	data []*av.Packet
