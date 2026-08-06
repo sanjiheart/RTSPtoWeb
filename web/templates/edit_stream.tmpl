@@ -24,6 +24,15 @@
           <div class="card card-primary">
             <div class="card-header">
               <h3 class="card-title">Parameters<small> main</small></h3>
+              <div class="card-tools">
+                {{ if eq $mainChannel.Format "h265" }}
+                  <span class="badge badge-warning">H265</span>
+                {{ else if eq $mainChannel.Format "h264" }}
+                  <span class="badge badge-success">H264</span>
+                {{ else }}
+                  <span class="badge badge-secondary">Not detected yet</span>
+                {{ end }}
+              </div>
             </div>
             <form class="stream-form main-form">
               <div class="card-body">
@@ -36,19 +45,6 @@
                   <label for="exampleInputPassword1">Stream description</label>
                   <input type="text" name="stream-desc" class="form-control"  placeholder="Enter stream description" value="{{$mainChannel.Desc}}">
                   <small  class="form-text text-muted">More information here</small>
-                </div>
-                <div class="form-group">
-                  <label for="inputStatus">Stream format</label>
-                  <select class="form-control custom-select" name="stream-format">
-                    <option selected disabled><small>Select One</small></option>
-                    <option value="h264"
-                    {{ if eq $mainChannel.Format "h264"}}
-                      selected
-                    {{ end }}>H.264</option>
-                    <option value="h265" {{ if eq $mainChannel.Format "h265"}}
-                      selected
-                    {{ end }}>H.265</option>
-                  </select>
                 </div>
                 <div class="form-group">
                   <label for="exampleInputPassword1">Stream url</label>
@@ -90,6 +86,13 @@
                     <div class="card-header">
                       <h3 class="card-title">Sub channel<small> parameters</small></h3>
                       <div class="card-tools">
+                      {{ if eq $value.Format "h265" }}
+                        <span class="badge badge-warning">H265</span>
+                      {{ else if eq $value.Format "h264" }}
+                        <span class="badge badge-success">H264</span>
+                      {{ else }}
+                        <span class="badge badge-secondary">Not detected yet</span>
+                      {{ end }}
                       <button type="button" class="btn btn-tool" onclick="removeChannelDiv(this)"><i class="fas fa-times"></i></button>
                       </div>
                     </div>
@@ -99,20 +102,6 @@
                           <label for="exampleInputPassword1">Substream description</label>
                           <input type="text" name="stream-desc" class="form-control"  placeholder="Enter stream description" value="{{$value.Desc}}" >
                           <small  class="form-text text-muted">More information here</small>
-                        </div>
-                        <div class="form-group">
-                          <label for="inputStatus">Substream format</label>
-                          <select class="form-control custom-select" name="stream-format">
-                          <option selected disabled><small>Select One</small></option>
-                          <option value="h264"
-                          {{ if eq $value.Format "h264"}}
-                            selected
-                          {{ end }}>H.264</option>
-                          <option value="h265"
-                          {{ if eq $value.Format "h265"}}
-                            selected
-                          {{ end }}>H.265</option>
-                          </select>
                         </div>
                         <div class="form-group">
                           <label for="exampleInputPassword1">Substream url</label>
@@ -175,7 +164,6 @@ function editStreamSubmit(){
   $('.stream-form').each(function(i){
     params.channels[i]={
         desc:$(this).find('input[name="stream-desc"]').val(),
-        format:$(this).find('select[name="stream-format"]').val(),
         url:$(this).find('input[name="stream-url"]').val(),
         on_demand:Boolean(parseInt($(this).find('select[name="stream-ondemand"]').val())),
         debug:Boolean($(this).find('input[name="debug"]').prop('checked')),

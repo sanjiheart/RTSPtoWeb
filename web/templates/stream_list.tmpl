@@ -40,7 +40,13 @@
                 <div class="carousel-item {{ if eq $k "0"}} active {{end}}">
                   <img class="d-block w-100 stream-img fix-height" channel="{{$k}}" src="/../static/img/noimage.svg">
                   <div class="carousel-caption d-none d-md-block">
-                    <h5>Channel: {{$k}}</h5>
+                    <h5>Channel: {{$k}}
+                      {{ if eq $v.Format "h265" }}
+                        <span class="badge badge-warning">H265</span>
+                      {{ else if eq $v.Format "h264" }}
+                        <span class="badge badge-success">H264</span>
+                      {{ end }}
+                    </h5>
                   </div>
                 </div>
                 {{end}}

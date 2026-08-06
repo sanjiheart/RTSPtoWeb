@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 
 	"github.com/deepch/vdk/av"
@@ -225,6 +226,12 @@ func (obj *StorageST) StreamChannelCodecsUpdate(streamID string, channelID strin
 		if channelTmp, ok := tmp.Channels[channelID]; ok {
 			channelTmp.codecs = val
 			channelTmp.sdp = sdp
+			for _, codec := range val {
+				if codec.Type().IsVideo() {
+					channelTmp.Format = strings.ToLower(codec.Type().String())
+					break
+				}
+			}
 			tmp.Channels[channelID] = channelTmp
 			obj.Streams[streamID] = tmp
 		}

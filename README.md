@@ -1,11 +1,13 @@
-# 基於[v2.4.3](https://github.com/deepch/RTSPtoWeb/tree/v2.4.3)的個人客製版>\_^
+# 基於[master](https://github.com/deepch/RTSPtoWeb/commit/22812cee03a16315a4997c68f8340e5914e8ddfb)的個人客製版(✪ω✪)
 
 ## 客製項目
 
 1. 預設 base image（`Dockerfile`）
 2. 更改預設帳密（`config.json`、`envs.js`）
 3. 新增容器化執行擋（`start.sh`）
-4. 新增 Desc、Format 屬性於 ChannelST
+4. 新增 Desc、Format（自動偵測）屬性於 ChannelST
+5. 改用修正過的 vdk fork（[sanjiheart/vdk](https://github.com/sanjiheart/vdk)），修正 H265 TS muxing 的兩個 bug（AUD NAL header 錯誤、keyframe 參數集順序顛倒）
+6. 升級 `hls.min.js` 到 1.6.16，支援瀏覽器端 HEVC-in-TS demux
 
 # RTSPtoWeb share you ip camera to world!
 
@@ -230,7 +232,7 @@ See the [API docs](/docs/api.md)
 
 ## Limitations
 
-Video Codecs Supported: H264 all profiles
+Video Codecs Supported: H264 all profiles, H265 (backend muxing only — actual playback still requires the viewer's browser to support HEVC decoding, e.g. via `MediaSource.isTypeSupported()`/`VideoDecoder.isConfigSupported()`. Most Chrome builds, especially on Linux, have no HEVC decode at all; Firefox has broader support)
 
 Audio Codecs Supported: no
 
