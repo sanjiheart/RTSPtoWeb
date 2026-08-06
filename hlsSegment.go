@@ -22,6 +22,7 @@ func (element *MuxerHLS) NewSegment() *Segment {
 	res := &Segment{
 		Fragment:          make(map[int]*Fragment),
 		CurrentFragmentID: -1, //Default fragment -1
+		Time:              time.Now(),
 	}
 	//Increase MSN
 	element.MSN++

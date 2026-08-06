@@ -1,4 +1,4 @@
-# 基於[master](https://github.com/deepch/RTSPtoWeb/commit/22812cee03a16315a4997c68f8340e5914e8ddfb)的個人客製版(✪ω✪)
+# 基於 [master](https://github.com/deepch/RTSPtoWeb/commit/22812cee03a16315a4997c68f8340e5914e8ddfb) 的客製版(✪ω✪)
 
 ## 客製項目
 
@@ -8,6 +8,7 @@
 4. 新增 Desc、Format（自動偵測）屬性於 ChannelST
 5. 改用修正過的 vdk fork（[sanjiheart/vdk](https://github.com/sanjiheart/vdk)），修正 H265 TS muxing 的兩個 bug（AUD NAL header 錯誤、keyframe 參數集順序顛倒）
 6. 升級 `hls.min.js` 到 1.6.16，支援瀏覽器端 HEVC-in-TS demux
+7. 修正 HLS-LL 的 `#EXT-X-PROGRAM-DATE-TIME` 從未被賦值的 bug（一律是 Go zero value，導致部分嚴謹的 HLS parser 如 Shaka Player 建立時間軸時崩潰）
 
 # RTSPtoWeb share you ip camera to world!
 
