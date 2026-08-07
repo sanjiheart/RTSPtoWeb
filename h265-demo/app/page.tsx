@@ -2,19 +2,20 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { HevcShakaPlayer } from '../components/HevcShakaPlayer';
-import { FirefoxHlsllPlayer } from '../components/FirefoxHlsllPlayer';
 import { DiagnosticPanel } from '../components/DiagnosticPanel';
 import { LogConsole, LogEntry } from '../components/LogConsole';
 import { detectCapabilities, CapabilityResult } from '../lib/capability';
 import { Play, Tv, Zap, Globe } from 'lucide-react';
 
 export default function Home() {
-  // Single Unified HLS-LL URL
-  const DEFAULT_HLSLL_URL =
-    'http://192.168.1.38:8083/stream/27aec28e-6181-4753-9acd-0456a75f0289/channel/2/hlsll/live/index.m3u8';
+  // Regular-cadence fMP4 HLS (not low-latency) - avoids the partial-segment
+  // timing complexity that caused Firefox+Shaka's native decode path to
+  // throw intermittent fatal errors (3014/3015) on the old /hlsll/ endpoint.
+  const DEFAULT_URL =
+    'http://192.168.1.38:8083/stream/27aec28e-6181-4753-9acd-0456a75f0289/channel/2/hlsfmp4/live/index.m3u8';
 
-  const [streamUrl, setStreamUrl] = useState<string>(DEFAULT_HLSLL_URL);
-  const [inputUrl, setInputUrl] = useState<string>(DEFAULT_HLSLL_URL);
+  const [streamUrl, setStreamUrl] = useState<string>(DEFAULT_URL);
+  const [inputUrl, setInputUrl] = useState<string>(DEFAULT_URL);
   const [capabilities, setCapabilities] = useState<CapabilityResult | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
@@ -55,22 +56,15 @@ export default function Home() {
     Promise.race([detectCapabilities(), timeout]).then(res => {
       setCapabilities(res);
       addLog(`瀏覽器檢測: ${res.browserName} ${res.browserVersion}`, 'info');
-
-      if (res.browserName === 'Firefox') {
-        addLog('Firefox 策略啟動: 使用 FirefoxHlsllPlayer 原生播放 HLS-LL fMP4（實測 Shaka 在此環境下的原生解碼路徑不穩定，會間歇性 fatal decode error，改回 hls.js）', 'success');
-      } else {
-        addLog('Chrome/Edge 策略啟動: 使用 Shaka + hevc.js 轉碼模式 (解鎖 H.265 播放)', 'success');
-      }
+      addLog('統一使用 Shaka Player：Chrome/Edge 走 hevc.js 轉碼，Firefox 走原生 HEVC 解碼（改用一般節奏 fMP4 端點後，Firefox 原生解碼路徑的間歇性 fatal error 已不再重現，見 3 分鐘連續測試）', 'success');
     });
   }, [addLog]);
 
   const handleApplyUrl = () => {
     if (!inputUrl.trim()) return;
     setStreamUrl(inputUrl.trim());
-    addLog(`載入 HLS-LL 串流網址: ${inputUrl.trim()}`, 'info');
+    addLog(`載入串流網址: ${inputUrl.trim()}`, 'info');
   };
-
-  const isFirefox = capabilities?.browserName === 'Firefox';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -83,16 +77,16 @@ export default function Home() {
             </div>
             <div>
               <h1 className="font-bold text-lg text-white tracking-tight flex items-center gap-2">
-                RTSPtoWeb H.265 HLS-LL Unified Player
+                RTSPtoWeb H.265 fMP4 HLS Unified Player
               </h1>
-              <p className="text-xs text-slate-400">單一 HLS-LL 網址 • Chrome & Firefox 通用順暢播放 Demo</p>
+              <p className="text-xs text-slate-400">單一 fMP4 HLS 網址 • Chrome & Firefox 統一使用 Shaka Player Demo</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
-              {isFirefox ? 'Firefox 模式 (Native Hls.js)' : 'Chrome/Edge 模式 (hevc.js)'}
+              Shaka Player 統一模式
             </span>
           </div>
         </div>
@@ -114,7 +108,7 @@ export default function Home() {
                 onKeyDown={e => {
                   if (e.key === 'Enter') handleApplyUrl();
                 }}
-                placeholder="請輸入 HLS-LL (.m3u8) 串流網址"
+                placeholder="請輸入 fMP4 HLS (.m3u8) 串流網址"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition"
               />
             </div>
@@ -130,7 +124,7 @@ export default function Home() {
           <div className="mt-3 flex items-center justify-between text-xs text-slate-400 font-mono">
             <div className="flex items-center gap-1 text-emerald-400">
               <Zap className="w-3.5 h-3.5" />
-              <span>自動策略: {isFirefox ? 'Firefox 停用 hevc.js 改用 Native Hls.js 直接播放 fMP4（Shaka 原生解碼在此環境下不穩定）' : 'Chrome/Edge 使用 Shaka + hevc.js 轉碼播放'}</span>
+              <span>自動策略: Chrome/Edge 走 Shaka + hevc.js 轉碼，Firefox 走 Shaka 原生 HEVC 解碼</span>
             </div>
           </div>
         </div>
@@ -138,28 +132,19 @@ export default function Home() {
         {/* Video Player Display Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            {isFirefox ? (
-              /* Firefox: Shaka's native-decode path threw intermittent fatal decode
-                 errors (code 3014/3015) in this environment, so use hls.js instead. */
-              <FirefoxHlsllPlayer
-                streamUrl={streamUrl}
-                onLog={addLog}
-              />
-            ) : (
-              /* Chrome/Edge have no native HEVC support at all, so hevc.js's
-                 WASM decode + WebCodecs re-encode transcode path is required. */
-              <HevcShakaPlayer
-                streamUrl={streamUrl}
-                onLog={addLog}
-              />
-            )}
+            {/* Shaka + hevc.js: Chrome/Edge transcode via WASM+WebCodecs (no native
+                HEVC at all), Firefox decodes natively (hevc.js just sits unused). */}
+            <HevcShakaPlayer
+              streamUrl={streamUrl}
+              onLog={addLog}
+            />
           </div>
 
           {/* Side Info Panel */}
           <div className="space-y-4 flex flex-col">
             <DiagnosticPanel
               capabilities={capabilities}
-              activeEngine={isFirefox ? 'Firefox Native HLS-LL Engine (hls.js)' : 'Shaka + hevc.js (Chrome/Edge 轉碼器)'}
+              activeEngine="Shaka Player (Chrome/Edge hevc.js 轉碼 / Firefox 原生解碼)"
             />
           </div>
         </div>
@@ -170,7 +155,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
-        RTSPtoWeb H.265 HLS-LL Single-URL Demo • Next.js Architecture
+        RTSPtoWeb H.265 fMP4 HLS Single-URL Demo • Next.js Architecture
       </footer>
     </div>
   );
