@@ -117,6 +117,10 @@ func HTTPAPIServer() {
 	public.GET("/stream/:uuid/channel/:channel/hlsll/live/init.mp4", HTTPAPIServerStreamHLSLLInit)
 	public.GET("/stream/:uuid/channel/:channel/hlsll/live/segment/:segment/:any", HTTPAPIServerStreamHLSLLM4Segment)
 	public.GET("/stream/:uuid/channel/:channel/hlsll/live/fragment/:segment/:fragment/:any", HTTPAPIServerStreamHLSLLM4Fragment)
+	//HLS fMP4 (regular cadence, not low-latency; for players that only accept fMP4 HEVC, e.g. Shaka+hevc.js)
+	public.GET("/stream/:uuid/channel/:channel/hlsfmp4/live/index.m3u8", HTTPAPIServerStreamHLSFMP4M3U8)
+	public.GET("/stream/:uuid/channel/:channel/hlsfmp4/live/init.mp4", HTTPAPIServerStreamHLSFMP4Init)
+	public.GET("/stream/:uuid/channel/:channel/hlsfmp4/live/segment/:seq/file.mp4", HTTPAPIServerStreamHLSFMP4Segment)
 	//MSE
 	public.GET("/stream/:uuid/channel/:channel/mse", HTTPAPIServerStreamMSE)
 	public.POST("/stream/:uuid/channel/:channel/webrtc", HTTPAPIServerStreamWebRTC)

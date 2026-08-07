@@ -9,6 +9,7 @@
 5. 改用修正過的 vdk fork（[sanjiheart/vdk](https://github.com/sanjiheart/vdk)），修正 H265 TS muxing 的兩個 bug（AUD NAL header 錯誤、keyframe 參數集順序顛倒）
 6. 升級 `hls.min.js` 到 1.6.16，支援瀏覽器端 HEVC-in-TS demux
 7. 修正 HLS-LL 的 `#EXT-X-PROGRAM-DATE-TIME` 從未被賦值的 bug（一律是 Go zero value，導致部分嚴謹的 HLS parser 如 Shaka Player 建立時間軸時崩潰）
+8. 新增 `/hlsfmp4/` 端點：fMP4 封裝、完整 segment 的 HLS（不像 HLS-LL 是切成 partial segment），跟既有 `/hls/`（TS 封裝）共用同一份 segment buffer，只是換一種 muxer。給只認 fMP4 HEVC、但用不到 HLS-LL 那套機制的播放器（例如 Shaka Player + hevc.js）用
 
 # RTSPtoWeb share you ip camera to world!
 

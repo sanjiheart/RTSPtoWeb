@@ -55,6 +55,35 @@ func (obj *StorageST) StreamHLSm3u8(uuid string, channelID string) (string, int,
 	return "", 0, ErrorStreamNotFound
 }
 
+// StreamHLSFMP4m3u8 get hls m3u8 list, fMP4-packaged segments (not low-latency).
+// Shares the same segment buffer as StreamHLSm3u8; only the manifest syntax
+// differs (EXT-X-MAP + .mp4 segment names instead of bare .ts segments).
+func (obj *StorageST) StreamHLSFMP4m3u8(uuid string, channelID string) (string, int, error) {
+	obj.mutex.RLock()
+	defer obj.mutex.RUnlock()
+	if tmp, ok := obj.Streams[uuid]; ok {
+		if channelTmp, ok := tmp.Channels[channelID]; ok {
+			var out string
+			out += "#EXTM3U\r\n#EXT-X-TARGETDURATION:" + strconv.Itoa(channelTmp.hlsLastDur) + "\r\n#EXT-X-VERSION:7\r\n#EXT-X-MEDIA-SEQUENCE:" + strconv.Itoa(channelTmp.hlsSequence) + "\r\n#EXT-X-MAP:URI=\"init.mp4\"\r\n"
+			var keys []int
+			for k := range channelTmp.hlsSegmentBuffer {
+				keys = append(keys, k)
+			}
+			sort.Ints(keys)
+			var count int
+			for _, i := range keys {
+				if i == 2 {
+					out += "#EXT-X-DISCONTINUITY\r\n"
+				}
+				count++
+				out += "#EXTINF:" + strconv.FormatFloat(channelTmp.hlsSegmentBuffer[i].dur.Seconds(), 'f', 1, 64) + ",\r\nsegment/" + strconv.Itoa(i) + "/file.mp4\r\n"
+			}
+			return out, count, nil
+		}
+	}
+	return "", 0, ErrorStreamNotFound
+}
+
 // StreamHLSTS send hls segment buffer to clients
 func (obj *StorageST) StreamHLSTS(uuid string, channelID string, seq int) ([]*av.Packet, error) {
 	obj.mutex.RLock()
