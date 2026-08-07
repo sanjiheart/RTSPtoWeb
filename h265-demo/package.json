@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "copy-vendor": "node scripts/copy-vendor.mjs",
-    "postinstall": "npm run copy-vendor",
-    "predev": "npm run copy-vendor",
-    "prebuild": "npm run copy-vendor",
+    "postinstall": "yarn copy-vendor",
+    "predev": "yarn copy-vendor",
+    "prebuild": "yarn copy-vendor",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
