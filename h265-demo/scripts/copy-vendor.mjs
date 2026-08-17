@@ -12,10 +12,9 @@
 //   because the worker resolves the wasm binary's location relative to its
 //   own script URL, not the wasm loader's.
 //
-// @hevcjs/shaka-plugin and mp4box are NOT copied here — both ship proper ESM
-// exports and are imported normally in HevcShakaPlayer, letting Next.js's
-// bundler resolve them (including mp4box, @hevcjs/core's internal bare-
-// specifier dependency) like any other package.
+// @hevcjs/shaka-plugin is NOT copied here — it ships a proper ESM export and
+// is imported normally in HevcShakaPlayer, letting Next.js's bundler resolve
+// it (and its own transitive dependency on mp4box) like any other package.
 
 import { cpSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';

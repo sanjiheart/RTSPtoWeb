@@ -18,10 +18,23 @@ declare global {
 export const HevcShakaPlayer: React.FC<Props> = ({ streamUrl, onLog }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<any>(null);
+  const handleRef = useRef<any>(null);
+  // Serializes teardown-then-setup across reloads: destroy() is async, so
+  // without waiting for the previous player to fully tear down, a new
+  // player's attach() can race the old one's destroy() on the same <video>
+  // element and silently hang (no error, no new network request — looks
+  // like clicking "load" does nothing).
+  const teardownRef = useRef<Promise<void>>(Promise.resolve());
 
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [transcodeSpeed, setTranscodeSpeed] = useState<string>('—');
+  // Which path Shaka actually picked for THIS load - never assume from the
+  // browser name. Native HEVC support depends on the OS/platform too (e.g.
+  // Chrome on Windows can have native HEVC via a system codec pack that
+  // Chrome on Linux typically lacks), so the only reliable signal is
+  // inspecting the active variant's codec after load() resolves.
+  const [decodeMode, setDecodeMode] = useState<'native' | 'transcode' | null>(null);
 
   const log = (msg: string, level: 'info' | 'warn' | 'error' | 'success' = 'info') => {
     console.log(`[Shaka hevc.js] [${level.toUpperCase()}] ${msg}`);
@@ -75,6 +88,10 @@ export const HevcShakaPlayer: React.FC<Props> = ({ streamUrl, onLog }) => {
 
     const initShaka = async () => {
       try {
+        await teardownRef.current;
+        if (!active) return;
+
+        setDecodeMode(null);
         window.shaka.polyfill.installAll();
 
         if (!window.shaka.Player.isBrowserSupported()) {
@@ -102,11 +119,16 @@ export const HevcShakaPlayer: React.FC<Props> = ({ streamUrl, onLog }) => {
           },
         });
 
+        // `adaptiveCompute` must NOT be `false` here: @hevcjs/shaka-plugin's
+        // attachComputeAware() short-circuits into a no-op whenever this is
+        // false, which silently kills the onObservation telemetry below too
+        // (not just the auto ABR-restriction behavior) - that's why the
+        // transcode-speed readout never updated.
         const handle = registerHevcTransmuxer(window.shaka, {
           workerUrl: '/vendor/hevcjs-core/transcode-worker.js',
           wasmUrl: '/vendor/hevcjs-core/wasm/hevc-decode.js',
-          adaptiveCompute: false,
         });
+        handleRef.current = handle;
 
         handle.attachComputeAware(player, {
           onObservation(stat: any, avgSpeedX: number) {
@@ -130,11 +152,28 @@ export const HevcShakaPlayer: React.FC<Props> = ({ streamUrl, onLog }) => {
           }
         });
 
-        log(`Shaka + hevc.js 開始載入 HLS-LL fMP4 串流: ${streamUrl}`, 'info');
+        // Whether THIS browser+OS combo can decode HEVC natively - checked
+        // directly, not inferred from the browser name (that's the whole
+        // point: e.g. Chrome on Linux usually can't, but the identical
+        // Chrome build on a Windows box with a system HEVC codec pack can).
+        // Note this can't be read back from player.getVariantTracks() after
+        // load() - Shaka's track metadata reports the codec as declared in
+        // the manifest (hvc1/hev1), regardless of whether hevc.js silently
+        // re-encoded it to avc1 before handing it to MediaSource.
+        const hevcMimeCodecs = [
+          'video/mp4; codecs="hvc1.1.6.L93.B0"',
+          'video/mp4; codecs="hev1.1.6.L93.B0"',
+          'video/mp4; codecs="hvc1"',
+          'video/mp4; codecs="hev1"',
+        ];
+        const isNative = typeof MediaSource !== 'undefined' && hevcMimeCodecs.some(c => MediaSource.isTypeSupported(c));
+        setDecodeMode(isNative ? 'native' : 'transcode');
+
+        log(`Shaka 開始載入 fMP4 串流（${isNative ? '原生 HEVC 硬解' : 'hevc.js WASM 轉碼'}）: ${streamUrl}`, 'info');
         await player.load(streamUrl);
 
         if (active) {
-          log('HLS-LL fMP4 串流已順利開始播放！', 'success');
+          log('串流已順利開始播放！', 'success');
           video.play().catch(e => log(`自動播放提醒: ${e.message}`, 'warn'));
         }
       } catch (err: any) {
@@ -149,47 +188,62 @@ export const HevcShakaPlayer: React.FC<Props> = ({ streamUrl, onLog }) => {
 
     return () => {
       active = false;
-      if (playerRef.current) {
+      const playerToDestroy = playerRef.current;
+      const handleToTeardown = handleRef.current;
+      playerRef.current = null;
+      handleRef.current = null;
+      teardownRef.current = (async () => {
         try {
-          playerRef.current.destroy();
+          handleToTeardown?.unregister();
         } catch {
           // ignore
         }
-        playerRef.current = null;
-      }
+        try {
+          await playerToDestroy?.destroy();
+        } catch {
+          // ignore
+        }
+      })();
     };
   }, [scriptLoaded, streamUrl]);
 
   return (
-    <div className="relative w-full aspect-video bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col items-center justify-center">
-      <video
-        ref={videoRef}
-        className="w-full h-full object-contain bg-black"
-        controls
-        muted
-        playsInline
-      />
+    // Fills whatever height the parent gives it (rather than deriving its
+    // own height from width via an aspect-ratio helper) so this can sit
+    // next to the log panel with both columns sharing one explicit,
+    // content-independent height - see the height rules around
+    // .video-log-row in globals.css.
+    <div className="position-relative w-100 h-100 rounded-4 overflow-hidden shadow-lg border border-secondary-subtle bg-black">
+      <video ref={videoRef} className="w-100 h-100 object-fit-contain bg-black" controls muted playsInline />
 
-      <div className="absolute top-4 left-4 flex items-center gap-2 bg-slate-900/80 backdrop-blur-md border border-slate-700/60 px-3 py-1.5 rounded-full text-xs font-mono text-white shadow-lg z-10 pointer-events-none">
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span className="font-semibold text-emerald-400">Shaka + hevc.js (Chrome fMP4)</span>
-        <span className="text-slate-400">|</span>
-        <span className="text-slate-300">轉碼速率: {transcodeSpeed}</span>
+      <div className="position-absolute top-0 start-0 m-3 d-flex align-items-center gap-2 bg-black bg-opacity-75 border border-secondary rounded-pill px-3 py-1 small font-monospace text-white z-3">
+        <span className="rounded-circle bg-success animate-pulse" style={{ width: 8, height: 8 }}></span>
+        <span className="fw-semibold text-success">
+          Shaka Player
+          {decodeMode === 'native' && ' · 原生 HEVC 解碼'}
+          {decodeMode === 'transcode' && ' · hevc.js 轉碼中'}
+        </span>
+        {decodeMode === 'transcode' && (
+          <>
+            <span className="text-secondary">|</span>
+            <span>轉碼速率: {transcodeSpeed}</span>
+          </>
+        )}
       </div>
 
       {!scriptLoaded && !errorMsg && (
-        <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white z-20">
-          <RefreshCw className="w-10 h-10 animate-spin text-emerald-400 mb-3" />
-          <p className="text-sm font-semibold text-slate-200 mb-1">正在載入 Shaka Player + hevc.js 轉碼器...</p>
-          <p className="text-xs text-slate-400">專為 Chrome HLS-LL (fMP4) 設計</p>
+        <div className="position-absolute top-0 start-0 w-100 h-100 bg-black bg-opacity-90 d-flex flex-column align-items-center justify-content-center text-center text-white p-4 z-2">
+          <RefreshCw size={40} className="text-success mb-3 animate-spin" />
+          <p className="fw-semibold mb-1">正在載入 Shaka Player...</p>
+          <p className="small text-secondary">依實際偵測到的硬體能力，自動選擇原生解碼或 hevc.js 轉碼</p>
         </div>
       )}
 
       {errorMsg && (
-        <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white z-20">
-          <AlertCircle className="w-12 h-12 text-rose-500 mb-3" />
-          <p className="text-base font-bold text-rose-400 mb-1">hevc.js 播放提醒</p>
-          <p className="text-xs text-slate-300 max-w-md mb-2">{errorMsg}</p>
+        <div className="position-absolute top-0 start-0 w-100 h-100 bg-black bg-opacity-90 d-flex flex-column align-items-center justify-content-center text-center text-white p-4 z-2">
+          <AlertCircle size={48} className="text-danger mb-3" />
+          <p className="fw-bold text-danger mb-1">hevc.js 播放提醒</p>
+          <p className="small text-secondary" style={{ maxWidth: '28rem' }}>{errorMsg}</p>
         </div>
       )}
     </div>
