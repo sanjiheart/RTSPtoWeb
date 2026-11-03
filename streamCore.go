@@ -14,7 +14,7 @@ import (
 )
 
 //StreamServerRunStreamDo stream run do mux
-func StreamServerRunStreamDo(streamID string, channelID string) {
+func StreamServerRunStreamDo(streamID string, channelID string, signals chan int) {
 	var status int
 	defer func() {
 		//TODO fix it no need unlock run if delete stream
@@ -36,6 +36,14 @@ func StreamServerRunStreamDo(streamID string, channelID string) {
 			baseLogger.WithFields(logrus.Fields{
 				"call": "StreamChannelControl",
 			}).Infoln("Exit", err)
+			return
+		}
+		//channel was replaced by edit/re-add, the new worker owns it now
+		if opt.signals != signals {
+			baseLogger.WithFields(logrus.Fields{
+				"call": "StreamChannelControl",
+			}).Infoln("Exit channel replaced")
+			status = 2
 			return
 		}
 		if opt.OnDemand && !Storage.ClientHas(streamID, channelID) {

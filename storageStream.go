@@ -36,7 +36,7 @@ func (obj *StorageST) StreamAdd(uuid string, val StreamST) error {
 		if !i2.OnDemand {
 			i2.runLock = true
 			val.Channels[i] = i2
-			go StreamServerRunStreamDo(uuid, i)
+			go StreamServerRunStreamDo(uuid, i, i2.signals)
 		} else {
 			val.Channels[i] = i2
 		}
@@ -66,7 +66,7 @@ func (obj *StorageST) StreamEdit(uuid string, val StreamST) error {
 			if !i4.OnDemand {
 				i4.runLock = true
 				val.Channels[i3] = i4
-				go StreamServerRunStreamDo(uuid, i3)
+				go StreamServerRunStreamDo(uuid, i3, i4.signals)
 			} else {
 				val.Channels[i3] = i4
 			}

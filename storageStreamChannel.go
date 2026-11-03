@@ -40,7 +40,7 @@ func (obj *StorageST) StreamChannelRunAll() {
 		for ks, vs := range v.Channels {
 			if !vs.OnDemand {
 				vs.runLock = true
-				go StreamServerRunStreamDo(k, ks)
+				go StreamServerRunStreamDo(k, ks, vs.signals)
 				v.Channels[ks] = vs
 				obj.Streams[k] = v
 			}
@@ -58,7 +58,7 @@ func (obj *StorageST) StreamChannelRun(streamID string, channelID string) {
 				channelTmp.runLock = true
 				streamTmp.Channels[channelID] = channelTmp
 				obj.Streams[streamID] = streamTmp
-				go StreamServerRunStreamDo(streamID, channelID)
+				go StreamServerRunStreamDo(streamID, channelID, channelTmp.signals)
 			}
 		}
 	}
@@ -275,12 +275,12 @@ func (obj *StorageST) StreamChannelAdd(uuid string, channelID string, val Channe
 		return ErrorStreamChannelAlreadyExists
 	}
 	val = obj.StreamChannelMake(val)
-	stream.Channels[channelID] = val
-	obj.Streams[uuid] = stream
 	if !val.OnDemand {
 		val.runLock = true
-		go StreamServerRunStreamDo(uuid, channelID)
+		go StreamServerRunStreamDo(uuid, channelID, val.signals)
 	}
+	stream.Channels[channelID] = val
+	obj.Streams[uuid] = stream
 	err := obj.SaveConfig()
 	if err != nil {
 		return err
@@ -298,11 +298,11 @@ func (obj *StorageST) StreamChannelEdit(uuid string, channelID string, val Chann
 				currentChannel.signals <- SignalStreamStop
 			}
 			val = obj.StreamChannelMake(val)
-			obj.Streams[uuid].Channels[channelID] = val
 			if !val.OnDemand {
 				val.runLock = true
-				go StreamServerRunStreamDo(uuid, channelID)
+				go StreamServerRunStreamDo(uuid, channelID, val.signals)
 			}
+			obj.Streams[uuid].Channels[channelID] = val
 			err := obj.SaveConfig()
 			if err != nil {
 				return err
