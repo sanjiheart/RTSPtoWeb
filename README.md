@@ -1,4 +1,6 @@
-# 基於 [master](https://github.com/deepch/RTSPtoWeb/commit/22812cee03a16315a4997c68f8340e5914e8ddfb) 的客製版(✪ω✪)
+# 基於 [master](https://github.com/deepch/RTSPtoWeb/commit/f63626a6ba60360947858d4121dc1b5ac7e64057) 的客製版(✪ω✪)
+
+**主要差異：支援 H265 (HEVC) 攝影機串流**，原版 RTSPtoWeb 的 H265 HLS 無法播放（見下方第 5～8 項）
 
 ## 客製項目
 
@@ -10,6 +12,7 @@
 6. 升級 `hls.min.js` 到 1.6.16，支援瀏覽器端 HEVC-in-TS demux
 7. 修正 HLS-LL 的 `#EXT-X-PROGRAM-DATE-TIME` 從未被賦值的 bug（一律是 Go zero value，導致部分嚴謹的 HLS parser 如 Shaka Player 建立時間軸時崩潰）
 8. 新增 `/hlsfmp4/` 端點：fMP4 封裝、完整 segment 的 HLS（不像 HLS-LL 是切成 partial segment），跟既有 `/hls/`（TS 封裝）共用同一份 segment buffer，只是換一種 muxer。給只認 fMP4 HEVC、但用不到 HLS-LL 那套機制的播放器（例如 Shaka Player + hevc.js）用
+9. 修正攝影機剛好在重連時新增或修改設定，同一個 channel 會同時跑兩個 worker 的 race
 
 # RTSPtoWeb share you ip camera to world!
 
